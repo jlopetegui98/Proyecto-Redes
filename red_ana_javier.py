@@ -11,6 +11,22 @@ def binary_to_int(n_bin):
     
     return n
 
+def binary_to_hex(n_bin):
+    map_int_hex = {0:'0', 1:'1', 2:'2', 3:'3', 4:'4', 5:'5', 6:'6', 7:'7', 8:'8', 9:'9', 10:'A', 11:'B', 12:'C', 13:'D', 14:'E', 15:'F'}
+    
+    n = binary_to_int(n_bin)
+    
+    n_hex = ""
+    
+    while n != 0:
+        n_hex = map_int_hex[n%16] + n_hex
+        n /= 16
+    
+    return n
+    
+    
+    
+
 class Network_item(object):  #clase de la que heredan los elementos de la red hub y host
     def __init__(self,name,p_number):  #se inicializa con los parametros nombre y cantidad de puertos
         self.name = name  #propiedad nombre del elemento
@@ -54,7 +70,7 @@ class Switch(Network_item):
         src_mac = str(self.buf[port]["source_mac"])
         dest_mac = binary_to_hex(dest_mac) ##implementar convertir de bin a hex
         if dest_mac == src_mac:
-            break
+            pass
         elif dest_mac != "FFFF" and dest_mac in self.MAC_table:
             port_send = self.MAC_table[dest_mac][1]
             # if port_send == 
@@ -64,7 +80,7 @@ class Switch(Network_item):
                 self.buf_to_send[port_send].append(self.buf[port])
     
     def save_bit(self,bit,port):
-        if self.buf_index[port] == 0
+        if self.buf_index[port] == 0:
             self.buf[port].append({"dest_mac":[],"source_mac":[],"size":[],"ext_field":[],"data":[]})
         
         index = self.buf_index[port]
@@ -115,11 +131,8 @@ class Switch(Network_item):
         
         self.time_slot_send[port] += 1
         if self.time_slot_send[port] == signal_time:
-            if index < 48:
-                self.buf_index[port] += 1
-            elif index < 48 + binary_to_int(str(self.buf_to_send[port]["size"])):
-                self.buf_index_send[port] += 1
-            else:
+            self.buf_index[port] += 1
+            if not index < 48 + binary_to_int(str(self.buf_to_send[port][0]["size"])):
                 self.buf_index_send[port] = 0
                 self.buf_to_send[port].pop(0)
             self.time_slot[port] = 0 
@@ -137,6 +150,11 @@ class Host(Network_item):  #clase correspondiente a las computadoras
                                 #computadora en el arreglo de los bit a transmitir
         self.consecutive_collisions = 0  #colisiones consecutivas que ha sufrido la computadora
         self.MAC = None
+        self.buf = {"dest_mac":[],"source_mac":[],"size":[],"ext_field":[],"data":[]}
+        self.buf_index = 0
+        self.time_slot_save = 0
+        self.ignore_frame = 0
+        self.recieved_frame = 0
         
     def set_MAC(self,mac):
         if self.MAC == None:
@@ -184,7 +202,39 @@ class Host(Network_item):  #clase correspondiente a las computadoras
                 self.data = []
             else:
                 self.time_slot = 0  ##ver si esto  cambia algo
+    
+    def save_bit(self,bit):
+        index = self.buf_index
         
+        if not self.time_slot_save:
+            if index < 16:
+                self.buf["dest_mac"].append(int(bit))
+            elif index < 32:
+                self.buf["source_mac"].append(int(bit))
+            elif index < 40:
+                self.buf["size"].append(int(bit))
+            elif index < 48:
+                self.buf["ext_field"].append(int(bit))
+            elif index < 48 + binary_to_int(self.buf[size]):
+                self.buf["data"].append(int(bit))
+        
+        self.time_slot_save += 1
+        
+        if self.time_slot_save == signal_time:
+            self.time_slot_save = 0
+            self.buf_index += 1
+            if not self.buf_index < 48 + binary_to_int(self.buf[size]):
+                self.buf_index = 0
+                if self.ignore_frame:
+                    self.buf = {"dest_mac":[],"source_mac":[],"size":[],"ext_field":[],"data":[]}
+                    self.ignore_frame = 0
+                else:
+                    self.recieved_frame = 1
+                pass
+        
+        if  self.buf_index == 16 and str(self.buf["dest_mac"]) != "0000000000000000" and binary_to_hex(str(self.buf["dest_mac"])) != self.MAC:
+            self.ignore_frame = 1
+                    
 
 class Network(object):
     def __init__(self,queries):
@@ -283,6 +333,9 @@ class Network(object):
         DIR_OUTPUT = "./network_state/"
         fd = open(DIR_OUTPUT + name + ".txt", 'w+')
         fd.close()
+        DIR_OUTPUT = "./network_state/"
+        fd = open(DIR_OUTPUT + name + "_data.txt", 'w+')
+        fd.close()
         host_ = Host(name)  #se crea el elemnto
         self.dict_name_to_item[name] = host_
         self.hosts.append(host_)
@@ -361,7 +414,7 @@ class Network(object):
         if not (hosts_attempting_to_send and switches_attempting_to_send):  #se chequea si ninguna computadora enviara en este momento
             for i in self.hosts + self.switches:   #por cada computadora y switch se chequea si tiene data pendiente de enviar para saber que no
                                     #puede terminarse la ejecucion
-                if (isinstance(i, Host) and host.data) or (isinstance(i, Switch) and any([len(b) > 0 for b in i.buf_to_send]):
+                if (isinstance(i, Host) and host.data) or (isinstance(i, Switch) and any([len(b) > 0 for b in i.buf_to_send])):
                     return 0
             return 1
         self.dfs_update_states(hosts_attempting_to_send, switches_attempting_to_send)  #se realiza un dfs para actualizar el estado de cada dispositivo
@@ -520,6 +573,15 @@ class Network(object):
                     fd.write(str(self.time) + " " + item.name + " " + state + " " + str(item.flow_data) + " " + result + ' ' + waiting + '\n')
                 item.state[0] = -1
                 item.p_sending[0] = -1
+            
+                fd.close()
+                if item.recieved_frame:
+                    fd = open(DIR_OUTPUT + item.name + "_data.txt", 'a')
+                    fd.write(str(self.time) + " " + binary_to_hex(str(item.buf["source_mac"])) + " " + binary_to_hex(str(item.buf["source_mac"])) + '\n')
+                    item.buf = {"dest_mac":[],"source_mac":[],"size":[],"ext_field":[],"data":[]}
+                    item.recieved_frame = 0
+                    fd.close()
+                    
             else:
                 for port in range(item.p_number):
                     if item.p_sending[port] == -1:
@@ -532,8 +594,7 @@ class Network(object):
                     item.p_sending[port] = -1
                 item.flow_data = None
                 
-
-            fd.close()
+                fd.close()
               
 
 def read_queries():  ##Leer el archivo con las queries
