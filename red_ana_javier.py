@@ -54,7 +54,7 @@ class Switch(Network_item):
         src_mac = str(self.buf[port]["source_mac"])
         dest_mac = binary_to_hex(dest_mac) ##implementar convertir de bin a hex
         if dest_mac == src_mac:
-            break
+            pass
         elif dest_mac != "FFFF" and dest_mac in self.MAC_table:
             port_send = self.MAC_table[dest_mac][1]
             # if port_send == 
@@ -64,7 +64,7 @@ class Switch(Network_item):
                 self.buf_to_send[port_send].append(self.buf[port])
     
     def save_bit(self,bit,port):
-        if self.buf_index[port] == 0
+        if self.buf_index[port] == 0:
             self.buf[port].append({"dest_mac":[],"source_mac":[],"size":[],"ext_field":[],"data":[]})
         
         index = self.buf_index[port]
@@ -361,7 +361,8 @@ class Network(object):
         if not (hosts_attempting_to_send and switches_attempting_to_send):  #se chequea si ninguna computadora enviara en este momento
             for i in self.hosts + self.switches:   #por cada computadora y switch se chequea si tiene data pendiente de enviar para saber que no
                                     #puede terminarse la ejecucion
-                if (isinstance(i, Host) and host.data) or (isinstance(i, Switch) and any([len(b) > 0 for b in i.buf_to_send]):
+                is_there_data_in_switch = any([len(b) > 0 for b in i.buf_to_send])
+                if (isinstance(i, Host) and host.data) or (isinstance(i, Switch) and is_there_data_in_switch):
                     return 0
             return 1
         self.dfs_update_states(hosts_attempting_to_send, switches_attempting_to_send)  #se realiza un dfs para actualizar el estado de cada dispositivo
