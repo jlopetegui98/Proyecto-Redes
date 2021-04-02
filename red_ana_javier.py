@@ -23,6 +23,14 @@ def binary_to_hex(n_bin):
         n /= 16
     
     return n
+
+def hex_to_binary(n_hex):
+    n_bin = ""
+    dict_hex_to_bin = {'1':"0001", '2':"0010", '3':"0011", '4':"0100", '5':"0101", '6':"0110", '7':"0111", '8':"1000", '9':"1001", 'A':"1010", 'B':"1011", 'C':"1100", 'D':"1101", 'E':"1110", 'F':"1111"}
+    for s in n_hex:
+        n_bin += (dict_hex_to_bin[s])
+    return n_bin
+    
     
     
     
@@ -269,7 +277,7 @@ class Network(object):
             self.time = self.time + 1
 
             for s in self.switches:
-                s.check_aging_time()
+                s.check_aging_time(self.time)
                     
     
     def query_parse(self,query):  #analizar la query y ejecutar la funcion q corresponda
@@ -303,7 +311,7 @@ class Network(object):
             port = query[2]
             self.disconnect(port)
         
-        elif name_query == "send":   #query send
+        elif name_query == "send_frame":   #query send
             host_name = query[2]  #nombre de la computadora q va a enviar
             mac_destiny = query[3] #mac del host al que se le envía la información
             data = query[4]  #numero a enviar
@@ -344,7 +352,7 @@ class Network(object):
     def add_switch(self,name,p_number):
         if name in self.dict_name_to_item: #no se crea el elemento si ya existe otro con ese nombre
             return -1
-        switch_ = Switch(name,n_ports)  #se crea el elemento
+        switch_ = Switch(name,p_number)  #se crea el elemento
         self.dict_name_to_item[name] = switch_
         self.switches.append(switch_)
         self.connections[switch_] = [None for i in range(p_number)]  #las conexionse se inicializan en None
@@ -406,6 +414,7 @@ class Network(object):
         host_ = self.dict_name_to_item[host_name]
         
         host_.set_MAC(mac)
+        print(host_.MAC)
 
     def check_local_network(self):  #funcion para chequear el estado de la red
         reachable_devices = self.dfs()  #se realiza un dfs para ver los dispositivos conectados entre si en la red
