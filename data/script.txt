@@ -1,1 +1,12 @@
-create host
+0 create host h1
+0 mac h1 A4B5
+0 create host h2
+0 mac h1 A4BC
+0 create host h3
+0 mac h1 A4B6
+1 create switch s1 4
+1 connect h1_1 s1_1
+1 connect h2_1 s1_2
+1 connect h3_1 s1_4
+1 send_frame h_1 A4BC 432A
+1 send_frame h_3 A4BC BCA3
