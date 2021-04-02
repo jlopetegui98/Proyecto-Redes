@@ -4,6 +4,18 @@ from collections import defaultdict
 
 signal_time = 10  #declaracion del signal time
 
+def int_to_bin(n):
+    n_bin = ""
+    
+    while n != 0:
+        n_bin = str(int(n%2)) + n_bin
+        n = int(n/2)
+    while len(n_bin) < 8:
+        n_bin = '0' + n_bin
+    
+    return n_bin
+        
+
 def binary_to_int(n_bin):
     n = 0
     for i,bit in enumerate(n_bin):
@@ -20,9 +32,9 @@ def binary_to_hex(n_bin):
     
     while n != 0:
         n_hex = map_int_hex[n%16] + n_hex
-        n /= 16
+        n = int(n/16)
     
-    return n
+    return n_hex
 
 def hex_to_binary(n_hex):
     n_bin = ""
@@ -315,7 +327,7 @@ class Network(object):
             host_name = query[2]  #nombre de la computadora q va a enviar
             mac_destiny = query[3] #mac del host al que se le envía la información
             data = query[4]  #numero a enviar
-            self.send(host_name,data)
+            self.send(host_name,mac_destiny,data)
 
         elif name_query == "mac":
             host_name = query[2]
@@ -395,7 +407,7 @@ class Network(object):
         self.connections[item_connected[0]][item_connected[1]] = None  #se elimnan las conexiones
         self.connections[item][port_number - 1] = None 
         
-    def send(self, host_name, data):  #funcion para la query send
+    def send(self, host_name, mac_destiny, data):  #funcion para la query send
         
         if host_name not in self.dict_name_to_item:  #la computadora no pertenece a la red
             return -1
@@ -405,6 +417,9 @@ class Network(object):
         if not isinstance(host_,Host):  #chequear si es una computadora (un hub no puede enviar)
             return -1
         
+        mac_source = hex_to_binary(host_.MAC)
+        size = int_to_bin(len(data))
+        frame = mac_destiny + mac_source + size + "00000000" + data
         host_.add_data_to_send(data,self.time)
         
     def assign_MAC(self, host_name, mac):
