@@ -409,14 +409,14 @@ class Network(object):
 
     def check_local_network(self):  #funcion para chequear el estado de la red
         reachable_devices = self.dfs()  #se realiza un dfs para ver los dispositivos conectados entre si en la red
-        hosts_attempting_to_send = self.detect_collisions(reachable_devices)  #esta funcion devuelve las computadoras que 
+        hosts_attempting_to_send, switches_attempting_to_send = self.detect_collisions(reachable_devices)  #esta funcion devuelve las computadoras que 
                                                                             #enviaran datos en este milisegundo
         if not (hosts_attempting_to_send and switches_attempting_to_send):  #se chequea si ninguna computadora enviara en este momento
             for i in self.hosts + self.switches:   #por cada computadora y switch se chequea si tiene data pendiente de enviar para saber que no
                                     #puede terminarse la ejecucion
 
-                is_there_data_in_switch = any([len(b) > 0 for b in i.buf_to_send])
-                if (isinstance(i, Host) and host.data) or (isinstance(i, Switch) and is_there_data_in_switch):
+#                 is_there_data_in_switch = any([len(b) > 0 for b in i.buf_to_send])
+                if (isinstance(i, Host) and i.data) or (isinstance(i, Switch) and any([len(b) > 0 for b in i.buf_to_send])):
                     return 0
             return 1
         self.dfs_update_states(hosts_attempting_to_send, switches_attempting_to_send)  #se realiza un dfs para actualizar el estado de cada dispositivo
@@ -446,7 +446,7 @@ class Network(object):
     #                 self.dfs_visit(device,connected_devices,visited,count_cc)
 
     def dfs(self):
-        reachable_devices = {value : [] for value in self.hosts + self.switchs}
+        reachable_devices = {value : [] for value in self.hosts + self.switches}
 
         for i in self.hosts + self.switches:
             visited = {value : False for value in self.dict_name_to_item.values()}
@@ -457,6 +457,8 @@ class Network(object):
 
     def dfs_visit(self, i, reachable_devices, visited, start_device):
         for item in self.connections[i]:
+            if item == None:
+                continue
             device = item[0]
             port_connected_to = item[1]
             if not item == None and not visited[device]:
@@ -467,7 +469,7 @@ class Network(object):
 
 
     def detect_collisions(self, reachable_devices):  #funcion para detectar las posibles colisiones en la red
-        xor = {_host : int(_host.data[_host.bit_to_send_pos]) for device in reachable_devices if isinstance(device, Host)}  #por cada componente conexa se tendra el xor de los valores que
+        xor = {device : int(device.data[device.bit_to_send_pos]) for device in reachable_devices if isinstance(device, Host) and device.data}  #por cada componente conexa se tendra el xor de los valores que
                                                         #pretenden enviar las computadoras de la misma
         hosts_attempting_to_send = []  #computadoras que van a enviar data en este milisegundo
         switches_attempting_to_send = []  #computadoras que van a enviar data en este milisegundo
