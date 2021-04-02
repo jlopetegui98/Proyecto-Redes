@@ -38,7 +38,7 @@ def binary_to_hex(n_bin):
 
 def hex_to_binary(n_hex):
     n_bin = ""
-    dict_hex_to_bin = {'1':"0001", '2':"0010", '3':"0011", '4':"0100", '5':"0101", '6':"0110", '7':"0111", '8':"1000", '9':"1001", 'A':"1010", 'B':"1011", 'C':"1100", 'D':"1101", 'E':"1110", 'F':"1111"}
+    dict_hex_to_bin = {'0':"0000",'1':"0001", '2':"0010", '3':"0011", '4':"0100", '5':"0101", '6':"0110", '7':"0111", '8':"1000", '9':"1001", 'A':"1010", 'B':"1011", 'C':"1100", 'D':"1101", 'E':"1110", 'F':"1111"}
     for s in n_hex:
         n_bin += (dict_hex_to_bin[s])
     return n_bin
@@ -418,9 +418,11 @@ class Network(object):
             return -1
         
         mac_source = hex_to_binary(host_.MAC)
-        size = int_to_bin(len(data))
-        frame = mac_destiny + mac_source + size + "00000000" + data
-        host_.add_data_to_send(data,self.time)
+        data_bin = hex_to_binary(data)
+        size = int_to_bin(len(data_bin))
+        frame = hex_to_binary(mac_destiny) + mac_source + size + "00000000" + data_bin
+        print(frame)
+        host_.add_data_to_send(frame,self.time)
         
     def assign_MAC(self, host_name, mac):
         if host_name not in self.dict_name_to_item:
@@ -509,7 +511,7 @@ class Network(object):
                     for i in connected_hosts:
                         xor[i] = xor
 
-                hosts_attempting_to_send.append(item)
+                hosts_attempting_to_send.append(_host)
 
         items_to_remove = []  #lista de las computadoras que no van a poder enviar porque detectan colisiones
         for item in hosts_attempting_to_send: 
