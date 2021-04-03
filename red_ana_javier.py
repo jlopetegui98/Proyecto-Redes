@@ -4,6 +4,8 @@ from collections import defaultdict
 
 signal_time = 10  #declaracion del signal time
 
+
+#funcion para convertir de entero a binario
 def int_to_bin(n):
     n_bin = ""
     
@@ -15,7 +17,7 @@ def int_to_bin(n):
     
     return n_bin
         
-
+#funcion para convertir de binario a entero
 def binary_to_int(n_bin):
     n = 0
     for i,bit in enumerate(n_bin):
@@ -23,6 +25,7 @@ def binary_to_int(n_bin):
     
     return n
 
+#funcion para convertir de binario a hexagesimal
 def binary_to_hex(n_bin):
     map_int_hex = {0:'0', 1:'1', 2:'2', 3:'3', 4:'4', 5:'5', 6:'6', 7:'7', 8:'8', 9:'9', 10:'A', 11:'B', 12:'C', 13:'D', 14:'E', 15:'F'}
     
@@ -36,6 +39,7 @@ def binary_to_hex(n_bin):
     
     return n_hex
 
+#funcion para convertir de heagesimal a binario
 def hex_to_binary(n_hex):
     n_bin = ""
     dict_hex_to_bin = {'0':"0000",'1':"0001", '2':"0010", '3':"0011", '4':"0100", '5':"0101", '6':"0110", '7':"0111", '8':"1000", '9':"1001", 'A':"1010", 'B':"1011", 'C':"1100", 'D':"1101", 'E':"1110", 'F':"1111"}
@@ -57,7 +61,7 @@ class Network_item(object):  #clase de la que heredan los elementos de la red hu
                                                         #si esta recibiendo informacion(1), enviando(0) o ninguna(-1)
                                                         #en el caso de las computadoras si tiene colision el estado 
                                                         #se representara con 2
-        self.send_state = [-1 for i in range(p_number)]
+        self.send_state = [-1 for i in range(p_number)] #arreglo que por cada puerto tiene el bit que tiene que enviar
         self.flow_data = None   #valor del bit que se esta transmitiendo
         
 
@@ -68,16 +72,16 @@ class Hub(Network_item):  #clase correspondiente a elemento hub
 class Switch(Network_item):
     def __init__(self,name,p_number):
         super(Switch,self).__init__(name,p_number)
-        self.MAC_table = {}
+        self.MAC_table = {}  #tabla con las direccciones MAC de los hosts alcanzables desde cada puerto
         self.aging_time = 600000  #aging_time, 10 min (si un host esta sin enviar mas d 10 min se quita d ese puerto)
         self.buf = [{} for i in range(p_number)] #un bufer por cada puerto del switch, para guardar el frame 
-        self.buf_index = [0 for i in range(p_number)] #en la posición i guarda el número de bit que ha recibido el puerto i
+        self.buf_index = [0 for i in range(p_number)] #en la posición i guarda el número de bits que ha recibido el puerto i
         self.buf_index_send = [0 for i in range(p_number)] #en la posición i guarda el número de bit hasta el que se ha enviado por el puerto i
-        self.buf_to_send = [[] for i in range(p_number)] 
-        self.time_slot = [0 for i in range(p_number)]
-        self.time_slot_send = [0 for i in range(p_number)]
+        self.buf_to_send = [[] for i in range(p_number)] #por cada puerto tiene la lista de frames pendientes de enviar
+        self.time_slot = [0 for i in range(p_number)]  #variable para garantizar que se este recibiendo en cada puerto el mismo bit durante un signal time
+        self.time_slot_send = [0 for i in range(p_number)] #variable para garantizar que se este enviando en cada puerto el mismo bit durante un signal time
         
-    def assign_MAC_to_table(self,mac,port,time):
+    def assign_MAC_to_table(self,mac,port,time):  #agrega a la tabla de MACs una direccion mac con el puuerto asociado y el tiempo actual
         self.MAC_table[mac] = (port,time)
     
     def check_aging_time(self,time): #quitar los host que llevan tiempo sin enviar
@@ -85,31 +89,31 @@ class Switch(Network_item):
             if time - self.MAC_table[item][1] > self.aging_time:
                 self.MAC_table.pop(i)
     
-    def transfer_frame_to_send(self,port):
-        print("transfering")
+    def transfer_frame_to_send(self,port): #despues de recibir un frame por un puerto el switch lo transfiere al puerto con la mac de destino
         dest_mac = "".join(map(str,self.buf[port]["dest_mac"]))
         src_mac = "".join(map(str,self.buf[port]["source_mac"]))
-        dest_mac = binary_to_hex(dest_mac) ##implementar convertir de bin a hex
-        if dest_mac == src_mac:
-            print("pass")
+        dest_mac = binary_to_hex(dest_mac)
+        if dest_mac == src_mac:  #si 
             pass
+        
         elif dest_mac != "FFFF" and dest_mac in self.MAC_table:
             port_send = self.MAC_table[dest_mac][1]
-            # if port_send == 
-            print(port_send)
+            if port_send == port:  #si la pc de destino esta en el mismo segmento de red que la fuente, no se envia el frame
+                pass
             self.buf_to_send[port_send].append(self.buf[port])
-        else:###BROADCAST
+        
+        else:                  #BROADCAST si no se conoce el puerto por el que esta la pc con la direccion MAC de destino o es FFFF
             for port_send in range(self.p_number):
                 if port_send == port:
                     continue
                 self.buf_to_send[port_send].append(self.buf[port])
     
-    def save_bit(self,bit,port,time):
-        if self.buf_index[port] == 0 and self.time_slot[port] == 0:  ##decirle esto a ana
-            self.buf[port] = {"dest_mac":[],"source_mac":[],"size":[],"ext_field":[],"data":[]}
+    def save_bit(self,bit,port,time):  #se guarda el bit recibido por un puerto
+        if self.buf_index[port] == 0 and self.time_slot[port] == 0:  
+            self.buf[port] = {"dest_mac":[],"source_mac":[],"size":[],"ext_field":[],"data":[]}  #el frame se va a guardar de esta forma, para tenerlo separado por campos
         
-        index = self.buf_index[port]
-        if not self.time_slot[port]:
+        index = self.buf_index[port]  
+        if not self.time_slot[port]:  #si esta iniciando la transmicion de un bit, que se hara durante un signal time, se guarda el valor del bit en la posicion que corresponda en el frame
             if index < 16:
                 self.buf[port]["dest_mac"].append(int(bit))
             elif index < 32:
@@ -124,17 +128,10 @@ class Switch(Network_item):
         
         
         self.time_slot[port] += 1
-        if self.buf_index[port] == 31 and self.time_slot[port] == signal_time:
-            # print("32" + str(self.buf[port]))
+        if self.buf_index[port] == 31 and self.time_slot[port] == signal_time: #se terminan de recibir los dos primeros campos del frame, por lo que se guarda la mac que envia en la MAC table
             self.assign_MAC_to_table(str(self.buf[port]["source_mac"]),port,time)
         
-        #         print(self.buf[port])
-        if self.time_slot[port] == signal_time:
-#             if index < 48:
-#                 self.buf_index[port] += 1
-#             elif index < 48 + binary_to_int("".join(map(str,self.buf[port]["size"]))):
-#                 self.buf_index[port] += 1
-#             else:
+        if self.time_slot[port] == signal_time:  #se completa un signal time, por lo que se sigue para el siguiente bit del frame
             self.buf_index[port] += 1
             if self.buf_index[port] == 48 + binary_to_int("".join(map(str,self.buf[port]["size"]))):
                 self.buf_index[port] = 0
@@ -142,12 +139,12 @@ class Switch(Network_item):
             self.time_slot[port] = 0   
 
     
-    def send_data(self,port):
-        if not self.buf_to_send[port]:
+    def send_data(self,port):  #funcion correspondiente al envio de un bit por el puerto port del switch
+        if not self.buf_to_send[port]:  #se comprueba que exista datos para enviar
             return -1
         index = self.buf_index_send[port]
         
-        if not self.time_slot_send[port]:
+        if not self.time_slot_send[port]:#se actualiza el estado del puerto con el bit que corresponde enviar del frame
             if index < 16:
                 self.send_state[port] = self.buf_to_send[port][0]["dest_mac"][index] #creo q debemos poner esto pq pueden hacer las dos cosas en cada puerto
             elif index < 32:
@@ -160,11 +157,11 @@ class Switch(Network_item):
                 self.send_state[port] = self.buf_to_send[port][0]["data"][index - 48] #creo q debemos poner esto pq pueden hacer las dos cosas en cada puerto
         
         self.time_slot_send[port] += 1
-        if self.time_slot_send[port] == signal_time:
+        if self.time_slot_send[port] == signal_time: #se completa un siganl time
             self.buf_index_send[port] += 1
             if not self.buf_index_send[port] < 48 + binary_to_int("".join(map(str,self.buf_to_send[port][0]["size"]))):
                 self.buf_index_send[port] = 0
-                self.buf_to_send[port].pop(0)
+                self.buf_to_send[port].pop(0) #se elimina el frame que se termina de enviar
             self.time_slot_send[port] = 0 
             
         
@@ -180,13 +177,13 @@ class Host(Network_item):  #clase correspondiente a las computadoras
                                 #computadora en el arreglo de los bit a transmitir
         self.consecutive_collisions = 0  #colisiones consecutivas que ha sufrido la computadora
         self.MAC = None
-        self.buf = {"dest_mac":[],"source_mac":[],"size":[],"ext_field":[],"data":[]}
-        self.buf_index = 0
-        self.time_slot_save = 0
-        self.ignore_frame = 0
-        self.recieved_frame = 0
+        self.buf = {"dest_mac":[],"source_mac":[],"size":[],"ext_field":[],"data":[]}  #en este diccionario se guarda el frame que se recibe
+        self.buf_index = 0  #variable para saber cuantos bits del frame se han recibido
+        self.time_slot_save = 0  #variable para garantizar que se reciba un bit durante un signal time
+        self.ignore_frame = 0  #flag para saber si la pc ignora el frame recibido
+        self.recieved_frame = 0  #flag que se activa cuando se termina de recibir un frame y no se ignora
         
-    def set_MAC(self,mac):
+    def set_MAC(self,mac): #funcion para asociar una dreccion MAC a una pc
         if self.MAC == None:
             self.MAC = mac
         else: 
@@ -233,10 +230,10 @@ class Host(Network_item):  #clase correspondiente a las computadoras
             else:
                 self.time_slot = 0  ##ver si esto  cambia algo
     
-    def save_bit(self,bit):
+    def save_bit(self,bit):  #funcion para guardar e bite del frame que se recibe
         index = self.buf_index
         
-        if not self.time_slot_save:
+        if not self.time_slot_save: #si se comienza a recibir un bit, que sera el mismo durante un signal time, se guarda en la posicion correspondiente del frame
             if index < 16:
                 self.buf["dest_mac"].append(int(bit))
             elif index < 32:
@@ -247,11 +244,10 @@ class Host(Network_item):  #clase correspondiente a las computadoras
                 self.buf["ext_field"].append(int(bit))
             elif index < 48 + binary_to_int("".join(map(str,self.buf["size"]))):
                 self.buf["data"].append(int(bit))
-                # print(self.buf)
-        
+                
         self.time_slot_save += 1
         
-        if self.time_slot_save == signal_time:
+        if self.time_slot_save == signal_time: # se termina un signal tiem
             self.time_slot_save = 0
             self.buf_index += 1
             if not self.buf_index < 48 + binary_to_int("".join(map(str,self.buf["size"]))):
@@ -263,15 +259,15 @@ class Host(Network_item):  #clase correspondiente a las computadoras
                     self.recieved_frame = 1
                 pass
         
-        if  self.buf_index == 16 and "".join(map(str,self.buf["dest_mac"])) != "0000000000000000" and binary_to_hex("".join(map(str,self.buf["dest_mac"]))) != self.MAC:
-            self.ignore_frame = 1
+        if  self.buf_index == 16 and "".join(map(str,self.buf["dest_mac"])) != "0000000000000000" and binary_to_hex("".join(map(str,self.buf["dest_mac"]))) != self.MAC: 
+            self.ignore_frame = 1  #se ignora el frame, pues la mac de destino no se corresponde con la de esta pc
                     
 
 class Network(object):
     def __init__(self,queries):
         self.hubs = []   #lista de hubs de la red
         self.hosts = []  #lista de computadoras de la red
-        self.switches = []
+        self.switches = []  #lista de switches de la red
         self.dict_name_to_item = {}   #diccionario por nombre de los dispositivos de la red
         self.queries = queries
         self.connections = {}  #diccionario para almacenar las conexiones de la red(llave elemento de la red
@@ -299,7 +295,7 @@ class Network(object):
             self.print_states()  #se imprime el estado de cada dispositivo
             self.time = self.time + 1
 
-            for s in self.switches:
+            for s in self.switches:  #se chequean las mac asociadas a los puertos del switch para considerar si se retiran de la tabla
                 s.check_aging_time(self.time)
                     
     
@@ -340,9 +336,9 @@ class Network(object):
             data = query[4]  #numero a enviar
             self.send(host_name,mac_destiny,data)
 
-        elif name_query == "mac":
-            host_name = query[2]
-            mac = query[3]
+        elif name_query == "mac":  #query mac
+            host_name = query[2]  #nomber de la pc
+            mac = query[3]  #direccion mac
             self.assign_MAC(host_name,mac)
         else:
             return -1 
@@ -433,62 +429,33 @@ class Network(object):
         
         mac_source = hex_to_binary(host_.MAC)
         data_bin = hex_to_binary(data)
-        print(data)
         size = int_to_bin(len(data_bin))
         frame = hex_to_binary(mac_destiny) + mac_source + size + "00000000" + data_bin
-        # print(frame)
         host_.add_data_to_send(frame,self.time)
         
-    def assign_MAC(self, host_name, mac):
+    def assign_MAC(self, host_name, mac): #funcion para asignar una direccion MAC a una pc
         if host_name not in self.dict_name_to_item:
             return -1
         
         host_ = self.dict_name_to_item[host_name]
         
         host_.set_MAC(mac)
-        print(host_.MAC)
-
+        
     def check_local_network(self):  #funcion para chequear el estado de la red
         reachable_devices = self.dfs()  #se realiza un dfs para ver los dispositivos conectados entre si en la red
         hosts_attempting_to_send, switches_attempting_to_send = self.detect_collisions(reachable_devices)  #esta funcion devuelve las computadoras que 
                                                                             #enviaran datos en este milisegundo
-#         print("hostttt" + hosts_attempting_to_send[0].name + str(self.time))
         if not (hosts_attempting_to_send or switches_attempting_to_send):  #se chequea si ninguna computadora enviara en este momento
-            print(self.time)
             for i in self.hosts + self.switches:   #por cada computadora y switch se chequea si tiene data pendiente de enviar para saber que no
                                     #puede terminarse la ejecucion
-
-#                 is_there_data_in_switch = any([len(b) > 0 for b in i.buf_to_send])
                 if (isinstance(i, Host) and i.data) or (isinstance(i, Switch) and any([len(b) > 0 for b in i.buf_to_send])):
                     return 0
             return 1
         self.dfs_update_states(hosts_attempting_to_send, switches_attempting_to_send)  #se realiza un dfs para actualizar el estado de cada dispositivo
         return 0
     
-    # def dfs(self):  #dfs para chequear los dispositivos interconectados en la red
-    #     connected_devices = {value : [] for value in self.dict_name_to_item.values()} #por cada elemento tendra el valor de la componente 
-    #                                                                                     #conexa que le corresponde en la red
-    #     count_cc = 1
-    #     for i in self.hosts + self.switches: #se inicia el dfs partiendo de cada computadora que no se haya visitado
-    #         # if not visited[i]:
-    #         visited = {value : False for value in self.dict_name_to_item.values()}
-    #         visited[i] = True
-    #         connected_devices[i].append(count_cc)
-    #         self.dfs_visit(i, connected_devices, visited, count_cc)
-    #         count_cc += 1
-    #     return connected_devices
-
-    # def dfs_visit(self, i, connected_devices, visited, count_cc): #funcion para el dfs_visit
-    #     for item in self.connections[i]:
-    #         device = item[0]
-    #         port_connected_to = item[1]
-    #         if not item == None and not visited[device]:
-    #             visited[device] = True
-    #             connected_devices[device].append(count_cc)
-    #             if not isinstance(device, Host) and nor isinstance(device, Switch):
-    #                 self.dfs_visit(device,connected_devices,visited,count_cc)
-
-    def dfs(self):
+    
+    def dfs(self): #dfs para ver los dispositivos alcanzables desde cada pc o switch
         reachable_devices = {value : [] for value in self.hosts + self.switches}
 
         for i in self.hosts + self.switches:
@@ -505,7 +472,7 @@ class Network(object):
             device = item[0]
             port_connected_to = item[1]
             if not item == None and not visited[device]:
-                visited[device] = True  ##DECIRLE A ANA
+                visited[device] = True
                 reachable_devices[start_device].append(device)
                 if not isinstance(device, Host) and not isinstance(device, Switch):
                     self.dfs_visit(device,reachable_devices,visited, start_device)
@@ -515,7 +482,7 @@ class Network(object):
         xor = {device : None for device in reachable_devices if isinstance(device, Host) and device.data}  #por cada componente conexa se tendra el xor de los valores que
                                                         #pretenden enviar las computadoras de la misma
         hosts_attempting_to_send = []  #computadoras que van a enviar data en este milisegundo
-        switches_attempting_to_send = []  #computadoras que van a enviar data en este milisegundo
+        switches_attempting_to_send = []  #switches que van a enviar data en este milisegundo
         for _host in self.hosts:  #se chequea por cada computadora si tiene que enviar en este milisegundo
             if _host.time_to_send == self.time:
                 if len(reachable_devices[_host]) > 1 and xor[_host] == None:
@@ -534,14 +501,12 @@ class Network(object):
 
         items_to_remove = []  #lista de las computadoras que no van a poder enviar porque detectan colisiones
         for item in hosts_attempting_to_send: 
-            if xor[item] != None and int(item.data[item.bit_to_send_pos]) != xor[item]:
+            if xor[item] != None and int(item.data[item.bit_to_send_pos]) != xor[item]: #si es distinto el xor obtenido del bit que transmite la pc se detecta la colision
                 item.manage_collision()  #funcion para que la computadora maneje la colision
                 items_to_remove.append(item)
 
         for i in items_to_remove:
             hosts_attempting_to_send.remove(i)
-        # hosts_attempting_to_send = [hosts_attempting_to_send for i in hosts_attempting_to_send]
-        # print(hosts_attempting_to_send)
         switches_attempting_to_send = [switch for switch in self.switches if any([len(b) > 0 for b in switch.buf_to_send])]
 
         return hosts_attempting_to_send, switches_attempting_to_send
@@ -554,7 +519,6 @@ class Network(object):
             i.send_data() 
             visited = {value : False for value in self.dict_name_to_item.values()}
             self.dfs_visit_update_states(i, visited, None, None)  #dfs en la componente conexa de la computadora en turno
-        print(switches_attempting_to_send)
         for i in switches_attempting_to_send:
             for j, data in enumerate(i.buf_to_send):
                 if data:
@@ -585,7 +549,6 @@ class Network(object):
                 if (isinstance(item[0], Host) and item[0].p_sending[0] != 2 and self.time != item[0].time_to_send - 1) or isinstance(item[0], Hub): #chequea si item[0] es una
                                                                                     #computadora que no esta colisionando o un hub y se 
                                                                                     #actualiza su esta a 1(recibiendo)
-                    print("ana", i.name, "  ", item[0].name)                                                            
                     item[0].p_sending[item[1]] = 1
                     item[0].state[item[1]] = i.send_state[port]
                     if isinstance(item[0], Host):
@@ -601,8 +564,7 @@ class Network(object):
                 if not visited[item[0]] and not isinstance(item[0],Host) and not isinstance(item[0], Switch):  #se llama dfs si no se ha visitado el
                                                                             #dispositivo y no es una computadora porque 
                                                                             #la computadora tiene un solo puerto que si recibe no envia
-                    self.dfs_visit_update_states(item[0],visited, item[1], None)  ##cambie aqui
-
+                    self.dfs_visit_update_states(item[0],visited, item[1], None)  
 
     def print_states(self):   #funcion para imprimir el estado de cada dispositivo
         DIR_OUTPUT = "./network_state/"
