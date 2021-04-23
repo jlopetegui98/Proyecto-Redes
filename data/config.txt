@@ -1,0 +1,4 @@
+error_detection = crc
+signal_time = 10
+G = 9
+r = 3

@@ -1,8 +1,0 @@
-0 create host pc
-0 create switch h 8
-0 create host pc1
-0 mac pc A4B5
-0 mac pc1 A2B3
-0 connect pc_1 h_1
-0 connect pc1_1 h_2
-0 send_frame pc A2B3 A6
